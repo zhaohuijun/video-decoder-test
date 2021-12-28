@@ -8,6 +8,8 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "md5": "^2.3.0",
+    "video-decoder": "^1.0.0",
     "vue": "^2.6.11"
   },
   "devDependencies": {

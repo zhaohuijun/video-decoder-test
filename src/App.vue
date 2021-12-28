@@ -1,17 +1,132 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+    <div style="margin: 20px;">
+      H264:
+        <input ref="fileH264" type="file" @change="openH264">
+    </div>
+    <div style="margin: 20px;">
+      H265:
+        <input ref="fileH265" type="file" @change="openH265">
+    </div>
+    <div style="margin-top: 10px">
+      <canvas ref="playCanvas" width="800" height="480"></canvas>
+    </div>
+
+    <div style="margin: 20px;">
+      <button @click="play">play</button>
+      <button @click="stop">stop</button>
+      <button @click="resume">resume</button>
+    </div>
   </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import md5 from 'md5'
+import Decoder from 'video-decoder'
 
 export default {
   name: 'App',
   components: {
-    HelloWorld
+  },
+  created () {
+    Decoder.setReadyCb(this.deReady)
+    this.file = null
+    this.typ = ''
+    this.blockSize = 8000
+  },
+  methods: {
+    deReady () {
+      console.log('deReady')
+      Decoder.setLogLevel('trace')
+    },
+    openH264 () {
+      console.log('openH264')
+      if (this.$refs.fileH264.files.length > 0) {
+        this.typ = 'h264'
+        this.file = this.$refs.fileH264.files[0]
+        this.createDe()
+      }
+    },
+    openH265 () {
+      console.log('openH265')
+      if (this.$refs.fileH265.files.length > 0) {
+        this.typ = 'h265'
+        this.file = this.$refs.fileH265.files[0]
+        this.createDe()
+      }
+    },
+    createDe () {
+      if (this.de) {
+        this.de.dispose()
+      }
+      this.de = new Decoder(this.typ)
+      this.reader = new FileReader()
+      this.reader.addEventListener('load', this.onLoad)
+      this.fileOffset = 0
+    },
+    play () {
+      this.playing = true
+      this.fileOffset = 0
+      this.fileOffset += this.readFile(this.reader, this.file, this.fileOffset, this.blockSize)
+    },
+    resume () {
+      this.playing = true
+      this.fileOffset += this.readFile(this.reader, this.file, this.fileOffset, this.blockSize)
+    },
+    stop () {
+      this.playing = false
+    },
+    onLoad (e) {
+      if (!this.playing) {
+        return
+      }
+      const buf = new Uint8Array(e.target.result)
+      // console.log('buf:', buf)
+      this.de.put(buf)
+      const self = this
+      // console.log('offset:', self.fileOffset)
+      console.log(self.fileOffset, buf.length, md5(buf))
+      if (self.fileOffset < 1024 * 1024 * 10) {
+        self.fileOffset += self.readFile(self.reader, self.file, self.fileOffset, self.blockSize)
+        return
+      }
+      console.log('offset:', self.fileOffset)
+      console.log('init buf end')
+      const f = self.de.get()
+      console.log('frame:', f)
+      // const getFrame = () => {
+      //   const f = self.de.get()
+      //   console.log('frame:', f)
+      //   if (f) {
+      //     setTimeout(getFrame, 10)
+      //   } else {
+      //     self.fileOffset += self.readFile(self.reader, self.file, self.fileOffset, self.blockSize)
+      //   }
+      // }
+      // setTimeout(getFrame, 10)
+    },
+    readFile (reader, file, offset, chunkSize) {
+      let end = offset + chunkSize
+      const total = file.size
+      if (end > total) {
+        end = total
+      }
+      if (end <= offset) {
+        return 0
+      }
+      let s
+      if (file.slice) {
+        s = file.slice(offset, end)
+      } else if (file.mozSlice) {
+        s = file.mozSlice(offset, end)
+      } else if (file.webkitSlice) {
+        s = file.webkitSlice(offset, end)
+      } else {
+        return 0
+      }
+      reader.readAsArrayBuffer(s)
+      return end - offset
+    }
   }
 }
 </script>
