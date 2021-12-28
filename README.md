@@ -1,5 +1,7 @@
 # video-decoder-test
 
+[视频解码项目](https://github.com/zhaohuijun/video-decoder)的示例
+
 ## Project setup
 ```
 npm install

@@ -21,7 +21,6 @@
 </template>
 
 <script>
-import md5 from 'md5'
 import Decoder from 'video-decoder'
 
 export default {
@@ -76,7 +75,7 @@ export default {
     stop () {
       this.playing = false
     },
-    onLoad (e) {
+    onLoad2 (e) {
       if (!this.playing) {
         return
       }
@@ -85,8 +84,8 @@ export default {
       this.de.put(buf)
       const self = this
       // console.log('offset:', self.fileOffset)
-      console.log(self.fileOffset, buf.length, md5(buf))
-      if (self.fileOffset < 1024 * 1024 * 10) {
+      // console.log(self.fileOffset, buf.length, md5(buf))
+      if (self.fileOffset < 1024 * 1024 * 3) {
         self.fileOffset += self.readFile(self.reader, self.file, self.fileOffset, self.blockSize)
         return
       }
@@ -94,16 +93,41 @@ export default {
       console.log('init buf end')
       const f = self.de.get()
       console.log('frame:', f)
-      // const getFrame = () => {
-      //   const f = self.de.get()
-      //   console.log('frame:', f)
-      //   if (f) {
-      //     setTimeout(getFrame, 10)
-      //   } else {
-      //     self.fileOffset += self.readFile(self.reader, self.file, self.fileOffset, self.blockSize)
-      //   }
+    },
+    onLoad (e) {
+      if (!this.playing) {
+        return
+      }
+      const buf = new Uint8Array(e.target.result)
+      // console.log('buf:', buf)
+      this.de.put(buf)
+      const self = this
+      console.log('================================== offset:', self.fileOffset)
+      // if (self.fileOffset > 1024 * 1024 * 3) {
+      //   console.log('================ offset:', self.fileOffset)
+      //   return
       // }
-      // setTimeout(getFrame, 10)
+      const getFrame = async () => {
+        // if (!this.playing) {
+        //   return
+        // }
+        const f = self.de.get()
+        if (f) {
+          console.log('frame:', f)
+          const canvas = this.$refs.playCanvas
+          // console.log('canvas:', canvas)
+          const oc = canvas.getContext('2d')
+          const img = new ImageData(f.width, f.height)
+          img.data.set(f.data, 0)
+          const ib = await createImageBitmap(img)
+          oc.drawImage(ib, 0, 0, f.width, f.height, 0, 0, canvas.clientWidth, canvas.clientHeight)
+          // oc.drawImage(ib, 0, 0)
+          setTimeout(getFrame, 100)
+        } else {
+          self.fileOffset += self.readFile(self.reader, self.file, self.fileOffset, self.blockSize)
+        }
+      }
+      setTimeout(getFrame, 0)
     },
     readFile (reader, file, offset, chunkSize) {
       let end = offset + chunkSize
