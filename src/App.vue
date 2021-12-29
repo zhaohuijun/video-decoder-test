@@ -31,7 +31,7 @@ export default {
     Decoder.setReadyCb(this.deReady)
     this.file = null
     this.typ = ''
-    this.blockSize = 8000
+    this.blockSize = 4096
   },
   methods: {
     deReady () {
@@ -83,16 +83,34 @@ export default {
       // console.log('buf:', buf)
       this.de.put(buf)
       const self = this
-      // console.log('offset:', self.fileOffset)
+      console.log('offset:', self.fileOffset)
       // console.log(self.fileOffset, buf.length, md5(buf))
-      if (self.fileOffset < 1024 * 1024 * 3) {
+      if (self.fileOffset < 1024 * 1024 * 2) {
         self.fileOffset += self.readFile(self.reader, self.file, self.fileOffset, self.blockSize)
         return
       }
       console.log('offset:', self.fileOffset)
       console.log('init buf end')
-      const f = self.de.get()
-      console.log('frame:', f)
+
+      const getFrame = async () => {
+        // if (!this.playing) {
+        //   return
+        // }
+        const f = self.de.get()
+        if (f) {
+          console.log('frame:', f)
+          const canvas = this.$refs.playCanvas
+          // console.log('canvas:', canvas)
+          const oc = canvas.getContext('2d')
+          const img = new ImageData(f.width, f.height)
+          img.data.set(f.data, 0)
+          const ib = await createImageBitmap(img)
+          oc.drawImage(ib, 0, 0, f.width, f.height, 0, 0, canvas.clientWidth, canvas.clientHeight)
+          // oc.drawImage(ib, 0, 0)
+          setTimeout(getFrame, 100)
+        }
+      }
+      setTimeout(getFrame, 0)
     },
     onLoad (e) {
       if (!this.playing) {
